@@ -61,7 +61,7 @@ function delete_host_entry([string] $current_host, [string] $current_ip)
 
 function maybe_update_host([string] $current_host, [string] $current_ip)
 {
-    if(-not ([ipaddress]::TryParse("$current_host",[ref][ipaddress]::Loopback)))
+    if([ipaddress]::TryParse("$current_host",[ref][ipaddress]::Loopback))
     {
         return
     }
