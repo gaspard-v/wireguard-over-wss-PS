@@ -3,12 +3,10 @@
 Param(
  [Parameter(Mandatory)]
  [string]
- $FUNC,
-
- [Parameter(Mandatory)]
- [string]
- $WG
+ $FUNC
 )
+
+$WG = $env:WIREGUARD_TUNNEL_NAME
 
 $DEFAULT_HOSTS_FILE="${Env:SystemRoot}\system32\drivers\etc\hosts"
 $CFG = "$PSScriptRoot\${WG}.wstunnel.ps1"
@@ -17,7 +15,7 @@ $PID_FILE = "${APPDATA}\${WG}.pid"
 
 if(-not (Test-Path -PathType Leaf -Path $CFG))
 {
-    throw "`"$CFG`" does not exists"
+    throw "`"${CFG}`" does not exists"
 }
 
 . "$CFG"
