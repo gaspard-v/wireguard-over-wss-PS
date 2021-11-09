@@ -77,9 +77,9 @@ Next we will modify the client confg to configure routing and point at the corre
 
 ```
 Table = off
-PreUp = C:\wstunnel\wstunnel.ps1 pre_up
-PostUp = C:\wstunnel\wstunnel.ps1 post_up
-PostDown = C:\wstunnel\wstunnel.ps1 post_down
+PreUp = powershell -file C:\wstunnel\wstunnel.ps1 pre_up
+PostUp = powershell -file C:\wstunnel\wstunnel.ps1 post_up
+PostDown = powershell -file C:\wstunnel\wstunnel.ps1 post_down
 ```
 
 #### Finish
