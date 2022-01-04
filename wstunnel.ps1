@@ -15,7 +15,7 @@ $PID_FILE = "${APPDATA}\${WG}.pid"
 
 if(-not (Test-Path -PathType Leaf -Path $CFG))
 {
-    throw "`"${CFG}`" does not exists"
+    throw "[#] missing config file: `"${CFG}`""
 }
 
 . "$CFG"
@@ -28,6 +28,7 @@ if (-not ($UPDATE_HOSTS))
 
 function add_host_entry([string] $current_host, [string] $current_ip)
 {
+    Write-Output "[#] Add new entry ${current_host} => <${current_ip}>"
     "`n${current_ip}`t${current_host}" | Out-File -Append -Encoding utf8 -NoNewline -FilePath $UPDATE_HOSTS
 }
 
@@ -38,6 +39,7 @@ function update_host_entry([string] $current_host, [string] $current_ip)
     foreach($line in $file_content) {
         if($line -match $current_host)
         {
+            Write-Output "[#] Updating ${current_host} -> ${current_ip}"
             $content += "${current_ip}`t${current_host}`n"
         } else {
             $content += "${line}`n"
@@ -50,6 +52,7 @@ function delete_host_entry([string] $current_host, [string] $current_ip)
 {
     $file_content = Get-Content "$UPDATE_HOSTS"
     [string] $content = ""
+    Write-Output "[#] delete entry ${current_host} -> ${current_ip}"
     foreach($line in $file_content) {
         if($line -notmatch $current_host)
         {
@@ -63,6 +66,8 @@ function maybe_update_host([string] $current_host, [string] $current_ip)
 {
     if([ipaddress]::TryParse("$current_host",[ref][ipaddress]::Loopback))
     {
+        # the $current_host is a loopback ip address
+        Write-Output "[#] ${current_host} is an IP address"
         return
     }
     $file_content = Get-Content "$UPDATE_HOSTS"
@@ -147,7 +152,10 @@ function post_down()
         } catch {}
         route delete ${remote_ip}/32 ${gw} | Out-Null
         Remove-Item "$PID_FILE"
-    } else {}
+    } else {
+        # $PID_FILE does not exist !
+        Write-Output "[#] Missing PID file: ${PID_FILE}"
+    }
 }
 
 Invoke-Expression $FUNC
