@@ -6,6 +6,8 @@ Param(
  $FUNC
 )
 
+$ErrorActionPreference = "Stop"
+
 $WG = $env:WIREGUARD_TUNNEL_NAME
 
 $DEFAULT_HOSTS_FILE="${Env:SystemRoot}\system32\drivers\etc\hosts"
@@ -130,10 +132,18 @@ function pre_up() {
 function post_up()
 {
     $interface = (Get-NetAdapter -Name "${WG}*").ifIndex
-    $ipv4 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv4).IPAddress
-    $ipv6 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv6).IPAddress
-    route add 0.0.0.0/0 ${ipv4} METRIC 1 IF ${interface} | Out-Null
-    route add ::0/0 ${ipv6} METRIC 1 IF ${interface} | Out-Null
+    try {
+        $ipv4 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv4).IPAddress
+        route add 0.0.0.0/0 ${ipv4} METRIC 1 IF ${interface} 2>&1 | Out-Null
+    } catch{
+        Write-Output "unable to find an IPv4 for interface `"${interface}`""
+    }
+    try {
+        $ipv6 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv6).IPAddress
+        route add ::0/0 ${ipv6} METRIC 1 IF ${interface} 2>&1 | Out-Null
+    } catch{
+        Write-Output "unable to find an IPv6 for interface `"${interface}`""
+    }
 }
 
 function post_down()
@@ -147,11 +157,9 @@ function post_down()
         $gw = $file_content[2]
         $wshost = $file_content[3]
         delete_host_entry $wshost $remote_ip
-        try {
-            Stop-Process -Force -id $wspid | Out-Null
-        } catch {}
+        Stop-Process -ErrorAction SilentlyContinue -Force -id $wspid | Out-Null
         route delete ${remote_ip}/32 ${gw} | Out-Null
-        Remove-Item "$PID_FILE"
+        Remove-Item -ErrorAction Continue "$PID_FILE"
     } else {
         # $PID_FILE does not exist !
         Write-Output "[#] Missing PID file: ${PID_FILE}"
