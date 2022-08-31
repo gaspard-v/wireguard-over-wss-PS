@@ -83,6 +83,7 @@ function maybe_update_host([string] $current_host, [string] $current_ip)
 
 function bg([string] $prog, [string[]] $params)
 {
+    Write-Output "[#] Launch in background `"${prog}`" with parameters ${params}"
     return Start-Process -NoNewWindow -FilePath $prog -ArgumentList $params -PassThru
 }
 
@@ -101,32 +102,49 @@ function launch_wstunnel()
         $wssport=443
     }
     $param = @("--quiet", 
-              "--udpTimeoutSec -1",
+              "--udpTimeoutSec=-1",
               "--udp"
               "-L 127.0.0.1:${lport}:127.0.0.1:${rport}",
               "wss://${REMOTE_HOST}:$wssport")
     if($WS_PREFIX)
     {
-        $param += "--upgradePathPrefix ${WS_PREFIX}"
+        $param += "--upgradePathPrefix=${WS_PREFIX}"
+    }
+
+    if($HTTP_PROXY)
+    {
+        $param += "--httpProxy=${HTTP_PROXY}"
     }
     return (bg -prog "wstunnel" -params $param).id
 }
 
 function pre_up() {
-    try {
-        $remote_ip = [System.Net.Dns]::GetHostAddresses($REMOTE_HOST)
-        foreach($ip in $remote_ip) {
-            if($ip.AddressFamily -eq "InterNetwork") {
-                $remote_ip4 = $ip.IPAddressToString
-                Write-Output "[#] Found IPv4 ${remote_ip4} for host ${REMOTE_HOST}"
-            } elseif($ip.AddressFamily -eq "InterNetworkV6") {
-                $remote_ip6 = $ip.IPAddressToString
-                Write-Output "[#] Found IPv6 ${remote_ip6} for host ${REMOTE_HOST}"
-            }
-        }
-    } catch {
+    if([ipaddress]::TryParse("$current_host",[ref][ipaddress]::Loopback))
+    {
         Write-Warning -Message "You should specifie a domain name instead of a direct IP address"
         $remote_ip4 = [IPAddress] $REMOTE_HOST
+    } else {
+        try {
+            $remote_ip = [System.Net.Dns]::GetHostAddresses($REMOTE_HOST)
+            foreach($ip in $remote_ip) {
+                if($ip.AddressFamily -eq "InterNetwork") {
+                    $remote_ip4 = $ip.IPAddressToString
+                    Write-Output "[#] Found IPv4 ${remote_ip4} for host ${REMOTE_HOST}"
+                } elseif($ip.AddressFamily -eq "InterNetworkV6") {
+                    $remote_ip6 = $ip.IPAddressToString
+                    Write-Output "[#] Found IPv6 ${remote_ip6} for host ${REMOTE_HOST}"
+                }
+            }
+        } catch {
+            Write-Warning "Unable to resolve host `"${$REMOTE_HOST}`""
+            if(-not $OVERRIDE_IPv4 -and -not $OVERRIDE_IPv6) {
+                Write-Error "Please set OVERRIDE_IPv4 or/and OVERRIDE_IPv6 !"
+                exit(1)
+            }
+            if($OVERRIDE_IPv4) {$remote_ip4 = $OVERRIDE_IPv4}
+            if($OVERRIDE_IPv6) {$remote_ip6 = $OVERRIDE_IPv6}
+
+        }
     }
     maybe_update_host -current_host $REMOTE_HOST -current_ip $remote_ip4
     # Find out the current route to $remote_ip and make it explicit

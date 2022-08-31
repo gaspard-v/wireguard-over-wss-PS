@@ -13,3 +13,10 @@ $REMOTE_PORT=51820
 
 # Can change local port of the wstunnel, don't forget to change Peer.Endpoint
 # $LOCAL_PORT=${REMOTE_PORT}
+
+# Wstunnel will use this proxy
+# $HTTP_PROXY="USER:PASS@HOST:PORT"
+
+# Override DNS resolution
+# $OVERRIDE_IPv4 = ''
+# $OVERRIDE_IPv6 = ''
