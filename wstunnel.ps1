@@ -115,18 +115,27 @@ function launch_wstunnel()
 function pre_up() {
     try {
         $remote_ip = [System.Net.Dns]::GetHostAddresses($REMOTE_HOST)
-        $remote_ip = $remote_ip.IPAddressToString
+        foreach($ip in $remote_ip) {
+            if($ip.AddressFamily -eq "InterNetwork") {
+                $remote_ip4 = $ip.IPAddressToString
+                Write-Output "[#] Found IPv4 ${remote_ip4} for host ${REMOTE_HOST}"
+            } elseif($ip.AddressFamily -eq "InterNetworkV6") {
+                $remote_ip6 = $ip.IPAddressToString
+                Write-Output "[#] Found IPv6 ${remote_ip6} for host ${REMOTE_HOST}"
+            }
+        }
     } catch {
-        $remote_ip = [IPAddress] $REMOTE_HOST
+        Write-Warning -Message "You should specifie a domain name instead of a direct IP address"
+        $remote_ip4 = [IPAddress] $REMOTE_HOST
     }
-    maybe_update_host -current_host $REMOTE_HOST -current_ip $remote_ip
+    maybe_update_host -current_host $REMOTE_HOST -current_ip $remote_ip4
     # Find out the current route to $remote_ip and make it explicit
-    [string] $gw = (Find-NetRoute -RemoteIPAddress $remote_ip).NextHop
-    $gw = $gw.Trim()
-    route add ${remote_ip}/32 ${gw} | Out-Null
+    [string] $gw4 = (Find-NetRoute -RemoteIPAddress $remote_ip4).NextHop
+    $gw4 = $gw4.Trim()
+    route add ${remote_ip4}/32 ${gw4} | Out-Null
     $wspid = launch_wstunnel
     New-Item -Path "${APPDATA}" -Force -ItemType "directory" | Out-Null
-    "${wspid} ${remote_ip} ${gw} ${REMOTE_HOST}" | Out-File -NoNewline -FilePath "${PID_FILE}"
+    "${wspid} ${remote_ip4} ${gw4} ${REMOTE_HOST}" | Out-File -NoNewline -FilePath "${PID_FILE}"
 }
 
 function post_up()
@@ -135,14 +144,16 @@ function post_up()
     try {
         $ipv4 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv4).IPAddress
         route add 0.0.0.0/0 ${ipv4} METRIC 1 IF ${interface} 2>&1 | Out-Null
+        Write-Output "[#] add IPv4 default route via wireguard gateway ${ipv4} via interface index ${interface}"
     } catch{
-        Write-Output "unable to find an IPv4 for interface `"${interface}`""
+        Write-Output "[#] unable to find an IPv4 for interface `"${interface}`""
     }
     try {
         $ipv6 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv6).IPAddress
         route add ::0/0 ${ipv6} METRIC 1 IF ${interface} 2>&1 | Out-Null
+        Write-Output "[#] add IPv6 default route via wireguard gateway ${ipv6} via interface index ${interface}"
     } catch{
-        Write-Output "unable to find an IPv6 for interface `"${interface}`""
+        Write-Output "[#] unable to find an IPv6 for interface `"${interface}`""
     }
 }
 
