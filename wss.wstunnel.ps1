@@ -1,6 +1,6 @@
 # $REMOTE_HOST and $REMOTE_PORT MUST be DEFINED !
-$REMOTE_HOST='some.server.com'
-$REMOTE_PORT=51820
+$REMOTE_HOST = 'some.server.com'
+$REMOTE_PORT = 51820
 
 # Override default hosts file path
 # $UPDATE_HOSTS='C:\hosts\file\path'
@@ -15,7 +15,7 @@ $REMOTE_PORT=51820
 # $LOCAL_PORT=${REMOTE_PORT}
 
 # Wstunnel will use this proxy
-# $HTTP_PROXY="USER:PASS@HOST:PORT"
+# $HTTP_PROXY="http://USER:PASS@HOST:PORT"
 
 # Override DNS resolution
 # $OVERRIDE_IPv4 = ''
