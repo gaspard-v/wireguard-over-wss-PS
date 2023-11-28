@@ -7,6 +7,8 @@ The following steps assume that there is already a Wireguard connection establis
 #### Server Configuration
 
 No modifications need to be made to the Wireguard server configuration itself, but `wstunnel` needs to be installed and configured as a systemd unit.
+**This version is only compatible with wstunnel version 7.x.x or higher**
+**if you use wstunnel version 6.x.x or below, please use the "wstunnel-haskell" branch**
 
 1. Download the latest wstunnel [release](https://github.com/erebe/wstunnel/releases)
 2. Copy the binary to somewhere in `/usr/local/bin/wstunnel`
@@ -45,7 +47,7 @@ If relying solely on the software firewall installed on the droplet, ensure that
 #### Client Configuration
 
 1. Execute [active_script_exec.ps1](./active_script_exec.ps1) as admin, it would allows Wireguard to execute scripts
-2. Create `C:\wstunnel\bin` and add it to `PATH`  [how to](https://www.architectryan.com/2018/03/17/add-to-the-path-on-windows-10/)
+2. Create `C:\wstunnel\bin` and add it to `PATH` [how to](https://www.architectryan.com/2018/03/17/add-to-the-path-on-windows-10/)
 3. Download the latest wstunnel [release](https://github.com/erebe/wstunnel/releases)
 4. Copy the binary to `C:\wstunnel\bin`
 5. Copy existing config to `C:\wstunnel\wss.conf`
