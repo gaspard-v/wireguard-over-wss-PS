@@ -8,12 +8,18 @@ Param(
 
 $ErrorActionPreference = "Stop"
 
+
 $WG = $env:WIREGUARD_TUNNEL_NAME
 
 $DEFAULT_HOSTS_FILE = "${Env:SystemRoot}\system32\drivers\etc\hosts"
 $CFG = "$PSScriptRoot\${WG}.wstunnel.ps1"
 $APPDATA = "${env:LOCALAPPDATA}\wstunnel"
 $PID_FILE = "${APPDATA}\${WG}.pid"
+$WSTUNNEL_PATH = "wstunnel.exe"
+
+if ($env:WSTUNNEL_CONFIG_DIR) {
+    $CFG = "$env:WSTUNNEL_CONFIG_DIR\${WG}.wstunnel.ps1"
+}
 
 if (-not (Test-Path -PathType Leaf -Path $CFG)) {
     throw "[#] missing config file: `"${CFG}`""
@@ -24,6 +30,19 @@ if (-not (Test-Path -PathType Leaf -Path $CFG)) {
 if (-not ($UPDATE_HOSTS)) {
     $UPDATE_HOSTS = $DEFAULT_HOSTS_FILE
 }
+
+if ($WSTUNNEL_EXEC_PATH) {
+    $WSTUNNEL_PATH = $WSTUNNEL_EXEC_PATH
+}
+
+if (-not $LOGS_DIR) {
+    $LOGS_DIR = $PSScriptRoot
+}
+
+if (-not $DISABLE_LOGS) {
+    Start-Transcript -Append -Path "$LOGS_DIR\${WG}.log"
+}
+
 
 
 function add_host_entry([string] $current_host, [string] $current_ip) {
@@ -105,7 +124,9 @@ function launch_wstunnel() {
         $param += "--http-proxy"
         $param += "${HTTP_PROXY}"
     }
-    return (bg -prog "wstunnel" -params $param).id
+    $wspid = (bg -prog $WSTUNNEL_PATH -params $param).id
+    New-Item -Path "${APPDATA}" -Force -ItemType "directory" | Out-Null
+    "${wspid} ${remote_ip4} ${gw4} ${REMOTE_HOST}" | Out-File -NoNewline -FilePath "${PID_FILE}"
 }
 
 function pre_up() {
@@ -143,9 +164,10 @@ function pre_up() {
     [string] $gw4 = (Find-NetRoute -RemoteIPAddress $remote_ip4).NextHop
     $gw4 = $gw4.Trim()
     route add ${remote_ip4}/32 ${gw4} | Out-Null
-    $wspid = launch_wstunnel
-    New-Item -Path "${APPDATA}" -Force -ItemType "directory" | Out-Null
-    "${wspid} ${remote_ip4} ${gw4} ${REMOTE_HOST}" | Out-File -NoNewline -FilePath "${PID_FILE}"
+    # Start wstunnel
+    Start-Job -ScriptBlock {
+        Start-Process -WindowStyle Hidden -FilePath "powershell.exe" -ArgumentList @("-File", $input, "launch_wstunnel")
+    } -InputObject $PSCommandPath
 }
 
 function post_up() {

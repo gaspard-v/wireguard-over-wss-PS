@@ -20,3 +20,12 @@ $REMOTE_PORT = 51820
 # Override DNS resolution
 # $OVERRIDE_IPv4 = ''
 # $OVERRIDE_IPv6 = ''
+
+# Path of wstunnel.exe, if not in PATH
+# WSTUNNEL_EXEC_PATH = "C:\path\to\wstunnel.exe"
+
+# disable logs (default is false)
+# $DISABLE_LOGS = $true
+
+# specify logs directory
+# $LOGS_DIR = "C:\path\to\logs\directory"
