@@ -18,18 +18,20 @@ No modifications need to be made to the Wireguard server configuration itself, b
 $ sudo setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/wstunnel
 ```
 
-4. Create the following service file at `/etc/systemd/system/wstunnel.service`:
+4. Create the following service file with `systemctl edit --force --full wstunnel.service`:
 
 ```bash
 [Unit]
-Description=Tunnel WG UDP over websocket
-After=network.target
+Description=Wireguard UDP tunnel over websocket
+After=network-online.target nss-lookup.target
+Wants=network-online.target
 
 [Service]
 Type=simple
-User=nobody
-ExecStart=/usr/local/bin/wstunnel -v --server wss://0.0.0.0:443 --restrictTo=127.0.0.1:51820
-Restart=no
+User=www-data
+Group=www-data
+ExecStart=/usr/local/bin/wstunnel server ws://0.0.0.0:80 --restrict-to 127.0.0.1:51820
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
