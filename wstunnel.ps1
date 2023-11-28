@@ -94,7 +94,7 @@ function launch_wstunnel() {
     }
     $param = @("client",
         "wss://${REMOTE_HOST}:$wssport",
-        "--remote-to-local",
+        "--local-to-remote",
         "udp://127.0.0.1:${lport}:127.0.0.1:${rport}?timeout_sec=0")
     if ($WS_PREFIX) {
         $param += "--http-upgrade-path-prefix"
