@@ -177,7 +177,7 @@ function post_up() {
     $interface = (Get-NetAdapter -Name "${WG}*").ifIndex
     try {
         $ipv4 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv4).IPAddress
-        route add 0.0.0.0/0 ${ipv4} METRIC 0 IF ${interface} 2>&1 | Out-Null
+        route add 0.0.0.0/0 ${ipv4} METRIC 1 IF ${interface} 2>&1 | Out-Null
         Write-Output "[#] add IPv4 default route via wireguard gateway ${ipv4} via interface index ${interface}"
     }
     catch {
@@ -185,7 +185,7 @@ function post_up() {
     }
     try {
         $ipv6 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv6).IPAddress
-        route add ::0/0 ${ipv6} METRIC 0 IF ${interface} 2>&1 | Out-Null
+        route add ::0/0 ${ipv6} METRIC 1 IF ${interface} 2>&1 | Out-Null
         Write-Output "[#] add IPv6 default route via wireguard gateway ${ipv6} via interface index ${interface}"
     }
     catch {
