@@ -170,7 +170,6 @@ function pre_up() {
     [string] $gw4 = $net_route.NextHop
     $interface4 = $net_route.InterfaceIndex[0]
     $gw4 = $gw4.Trim()
-    # route add ${remote_ip4}/32 ${gw4} | Out-Null
     Write-Output "[#] Writing new IPv4 route ${remote_ip4}/32 => ${gw4} via interface index $interface4"
     New-NetRoute -DestinationPrefix "${remote_ip4}/32" -NextHop "${gw4}" -InterfaceIndex $interface4 -AddressFamily "IPv4" -PolicyStore "ActiveStore" | Out-Null
     # Start wstunnel
@@ -188,7 +187,6 @@ function post_up() {
     try {
         $ipv4 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv4).IPAddress
         New-NetRoute -DestinationPrefix "0.0.0.0/0" -InterfaceIndex $interface -NextHop ${ipv4} -AddressFamily "IPv4" -PolicyStore "ActiveStore" -RouteMetric 1 | Out-Null
-        # route add 0.0.0.0/0 ${ipv4} METRIC 1 IF ${interface} 2>&1 | Out-Null
         Write-Output "[#] add IPv4 default route via wireguard gateway ${ipv4} via interface index ${interface}"
     }
     catch {
@@ -197,7 +195,6 @@ function post_up() {
     try {
         $ipv6 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv6).IPAddress
         New-NetRoute -DestinationPrefix "::0/0" -InterfaceIndex $interface -NextHop ${ipv6} -AddressFamily "IPv6" -PolicyStore "ActiveStore" -RouteMetric 1 | Out-Null
-        # route add ::0/0 ${ipv6} METRIC 1 IF ${interface} 2>&1 | Out-Null
         Write-Output "[#] add IPv6 default route via wireguard gateway ${ipv6} via interface index ${interface}"
     }
     catch {
@@ -215,7 +212,6 @@ function post_down() {
         $wshost = $file_content[3]
         delete_host_entry $wshost $remote_ip
         Stop-Process -ErrorAction SilentlyContinue -Force -id $wspid | Out-Null
-        # route delete ${remote_ip}/32 ${gw} | Out-Null
         Write-Output "[#] Delete IPv4 route ${remote_ip}/32 => ${gw}"
         Remove-NetRoute -DestinationPrefix "${remote_ip}/32" -NextHop "${gw}" -Confirm:$False
         Remove-Item -ErrorAction Continue "$PID_FILE"
