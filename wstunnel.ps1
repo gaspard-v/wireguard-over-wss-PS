@@ -138,31 +138,31 @@ function pre_up() {
     if ([ipaddress]::TryParse("$current_host", [ref][ipaddress]::Loopback)) {
         Write-Warning -Message "You should specifie a domain name instead of a direct IP address"
         $remote_ip4 = [IPAddress] $REMOTE_HOST
+        return
     }
-    else {
-        try {
-            $remote_ip = [System.Net.Dns]::GetHostAddresses($REMOTE_HOST)
-            foreach ($ip in $remote_ip) {
-                if ($ip.AddressFamily -eq "InterNetwork") {
-                    $remote_ip4 = $ip.IPAddressToString
-                    Write-Output "[#] Found IPv4 ${remote_ip4} for host ${REMOTE_HOST}"
-                }
-                elseif ($ip.AddressFamily -eq "InterNetworkV6") {
-                    $remote_ip6 = $ip.IPAddressToString
-                    Write-Output "[#] Found IPv6 ${remote_ip6} for host ${REMOTE_HOST}"
-                }
-            }
-        }
-        catch {
-            Write-Warning "Unable to resolve host `"${$REMOTE_HOST}`""
-            if (-not $OVERRIDE_IPv4 -and -not $OVERRIDE_IPv6) {
-                Write-Error "Please set OVERRIDE_IPv4 or/and OVERRIDE_IPv6 !"
-                exit(1)
-            }
-            if ($OVERRIDE_IPv4) { $remote_ip4 = $OVERRIDE_IPv4 }
-            if ($OVERRIDE_IPv6) { $remote_ip6 = $OVERRIDE_IPv6 }
 
+    try {
+        $remote_ip = [System.Net.Dns]::GetHostAddresses($REMOTE_HOST)
+        foreach ($ip in $remote_ip) {
+            if ($ip.AddressFamily -eq "InterNetwork") {
+                $remote_ip4 = $ip.IPAddressToString
+                Write-Output "[#] Found IPv4 ${remote_ip4} for host ${REMOTE_HOST}"
+            }
+            elseif ($ip.AddressFamily -eq "InterNetworkV6") {
+                $remote_ip6 = $ip.IPAddressToString
+                Write-Output "[#] Found IPv6 ${remote_ip6} for host ${REMOTE_HOST}"
+            }
         }
+    }
+    catch {
+        Write-Warning "Unable to resolve host `"${$REMOTE_HOST}`""
+        if (-not $OVERRIDE_IPv4 -and -not $OVERRIDE_IPv6) {
+            Write-Error "Please set OVERRIDE_IPv4 or/and OVERRIDE_IPv6 !"
+            exit(1)
+        }
+        if ($OVERRIDE_IPv4) { $remote_ip4 = $OVERRIDE_IPv4 }
+        if ($OVERRIDE_IPv6) { $remote_ip6 = $OVERRIDE_IPv6 }
+
     }
     maybe_update_host -current_host $REMOTE_HOST -current_ip $remote_ip4
     # Find out the current route to $remote_ip and make it explicit
