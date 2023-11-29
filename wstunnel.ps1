@@ -40,7 +40,12 @@ if (-not $LOGS_DIR) {
 }
 
 if (-not $DISABLE_LOGS) {
-    Start-Transcript -Append -Path "$LOGS_DIR\${WG}_${FUNC}.log"
+    try {
+        Start-Transcript -Append -Path "$LOGS_DIR\${WG}_${FUNC}.log" | Out-Null
+    }
+    catch {
+        Write-Output "[#] Cannot start transcription"
+    }
 }
 
 
@@ -170,7 +175,7 @@ function pre_up() {
         $env:REMOTE_IP4 = $remote_ip4
         $env:GW4 = $gw4
         Start-Process -WindowStyle Hidden -FilePath "powershell.exe" -ArgumentList @("-File", $input, "launch_wstunnel")
-    } -InputObject $PSCommandPath -ArgumentList $remote_ip4, $gw4
+    } -InputObject $PSCommandPath -ArgumentList $remote_ip4, $gw4 | Out-Null
 }
 
 function post_up() {
