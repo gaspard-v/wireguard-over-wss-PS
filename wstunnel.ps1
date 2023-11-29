@@ -138,38 +138,42 @@ function pre_up() {
     if ([ipaddress]::TryParse("$current_host", [ref][ipaddress]::Loopback)) {
         Write-Warning -Message "You should specifie a domain name instead of a direct IP address"
         $remote_ip4 = [IPAddress] $REMOTE_HOST
+        return
     }
-    else {
-        try {
-            $remote_ip = [System.Net.Dns]::GetHostAddresses($REMOTE_HOST)
-            foreach ($ip in $remote_ip) {
-                if ($ip.AddressFamily -eq "InterNetwork") {
-                    $remote_ip4 = $ip.IPAddressToString
-                    Write-Output "[#] Found IPv4 ${remote_ip4} for host ${REMOTE_HOST}"
-                }
-                elseif ($ip.AddressFamily -eq "InterNetworkV6") {
-                    $remote_ip6 = $ip.IPAddressToString
-                    Write-Output "[#] Found IPv6 ${remote_ip6} for host ${REMOTE_HOST}"
-                }
-            }
-        }
-        catch {
-            Write-Warning "Unable to resolve host `"${$REMOTE_HOST}`""
-            if (-not $OVERRIDE_IPv4 -and -not $OVERRIDE_IPv6) {
-                Write-Error "Please set OVERRIDE_IPv4 or/and OVERRIDE_IPv6 !"
-                exit(1)
-            }
-            if ($OVERRIDE_IPv4) { $remote_ip4 = $OVERRIDE_IPv4 }
-            if ($OVERRIDE_IPv6) { $remote_ip6 = $OVERRIDE_IPv6 }
 
+    try {
+        $remote_ip = [System.Net.Dns]::GetHostAddresses($REMOTE_HOST)
+        foreach ($ip in $remote_ip) {
+            if ($ip.AddressFamily -eq "InterNetwork") {
+                $remote_ip4 = $ip.IPAddressToString
+                Write-Output "[#] Found IPv4 ${remote_ip4} for host ${REMOTE_HOST}"
+            }
+            elseif ($ip.AddressFamily -eq "InterNetworkV6") {
+                $remote_ip6 = $ip.IPAddressToString
+                Write-Output "[#] Found IPv6 ${remote_ip6} for host ${REMOTE_HOST}"
+            }
         }
+    }
+    catch {
+        Write-Warning "Unable to resolve host `"${$REMOTE_HOST}`""
+        if (-not $OVERRIDE_IPv4 -and -not $OVERRIDE_IPv6) {
+            Write-Error "Please set OVERRIDE_IPv4 or/and OVERRIDE_IPv6 !"
+            exit(1)
+        }
+        if ($OVERRIDE_IPv4) { $remote_ip4 = $OVERRIDE_IPv4 }
+        if ($OVERRIDE_IPv6) { $remote_ip6 = $OVERRIDE_IPv6 }
+
     }
     maybe_update_host -current_host $REMOTE_HOST -current_ip $remote_ip4
     # Find out the current route to $remote_ip and make it explicit
-    [string] $gw4 = (Find-NetRoute -RemoteIPAddress $remote_ip4).NextHop
+    $net_route = Find-NetRoute -RemoteIPAddress $remote_ip4
+    [string] $gw4 = $net_route.NextHop
+    $interface4 = $net_route.InterfaceIndex[0]
     $gw4 = $gw4.Trim()
-    route add ${remote_ip4}/32 ${gw4} | Out-Null
+    Write-Output "[#] Writing new IPv4 route ${remote_ip4}/32 => ${gw4} via interface index $interface4"
+    New-NetRoute -DestinationPrefix "${remote_ip4}/32" -NextHop "${gw4}" -InterfaceIndex $interface4 -AddressFamily "IPv4" -PolicyStore "ActiveStore" | Out-Null
     # Start wstunnel
+    Write-Output "[#] Launch wstunnel"
     Start-Job -ScriptBlock {
         param($remote_ip4, $gw4)
         $env:REMOTE_IP4 = $remote_ip4
@@ -182,7 +186,7 @@ function post_up() {
     $interface = (Get-NetAdapter -Name "${WG}*").ifIndex
     try {
         $ipv4 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv4).IPAddress
-        route add 0.0.0.0/0 ${ipv4} METRIC 1 IF ${interface} 2>&1 | Out-Null
+        New-NetRoute -DestinationPrefix "0.0.0.0/0" -InterfaceIndex $interface -NextHop ${ipv4} -AddressFamily "IPv4" -PolicyStore "ActiveStore" -RouteMetric 1 | Out-Null
         Write-Output "[#] add IPv4 default route via wireguard gateway ${ipv4} via interface index ${interface}"
     }
     catch {
@@ -190,7 +194,7 @@ function post_up() {
     }
     try {
         $ipv6 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv6).IPAddress
-        route add ::0/0 ${ipv6} METRIC 1 IF ${interface} 2>&1 | Out-Null
+        New-NetRoute -DestinationPrefix "::0/0" -InterfaceIndex $interface -NextHop ${ipv6} -AddressFamily "IPv6" -PolicyStore "ActiveStore" -RouteMetric 1 | Out-Null
         Write-Output "[#] add IPv6 default route via wireguard gateway ${ipv6} via interface index ${interface}"
     }
     catch {
@@ -208,7 +212,8 @@ function post_down() {
         $wshost = $file_content[3]
         delete_host_entry $wshost $remote_ip
         Stop-Process -ErrorAction SilentlyContinue -Force -id $wspid | Out-Null
-        route delete ${remote_ip}/32 ${gw} | Out-Null
+        Write-Output "[#] Delete IPv4 route ${remote_ip}/32 => ${gw}"
+        Remove-NetRoute -DestinationPrefix "${remote_ip}/32" -NextHop "${gw}" -Confirm:$False
         Remove-Item -ErrorAction Continue "$PID_FILE"
     }
     else {
