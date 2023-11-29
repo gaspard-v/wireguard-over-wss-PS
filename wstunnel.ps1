@@ -41,8 +41,6 @@ if (-not $LOGS_DIR) {
 
 if (-not $DISABLE_LOGS) {
     Start-Transcript -Append -Path "$LOGS_DIR\${WG}_${FUNC}.log"
-    $DebugPreference = "Continue"
-    $VerbosePreference = "Continue"
 }
 
 
