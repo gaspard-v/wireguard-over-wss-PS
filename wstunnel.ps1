@@ -40,7 +40,9 @@ if (-not $LOGS_DIR) {
 }
 
 if (-not $DISABLE_LOGS) {
-    Start-Transcript -Append -Path "$LOGS_DIR\${WG}.log"
+    Start-Transcript -Append -Path "$LOGS_DIR\${WG}_${FUNC}.log"
+    $DebugPreference = "Continue"
+    $VerbosePreference = "Continue"
 }
 
 
@@ -93,7 +95,7 @@ function maybe_update_host([string] $current_host, [string] $current_ip) {
 }
 
 function bg([string] $prog, [string[]] $params) {
-    Write-Output "[#] Launch in background `"${prog}`" with parameters ${params}"
+    Write-Output "[#] Launch in background `"${prog}`" with parameters ${params}" 
     return Start-Process -NoNewWindow -FilePath $prog -ArgumentList $params -PassThru
 }
 
@@ -126,7 +128,7 @@ function launch_wstunnel() {
     }
     $wspid = (bg -prog $WSTUNNEL_PATH -params $param).id
     New-Item -Path "${APPDATA}" -Force -ItemType "directory" | Out-Null
-    "${wspid} ${remote_ip4} ${gw4} ${REMOTE_HOST}" | Out-File -NoNewline -FilePath "${PID_FILE}"
+    "${wspid} ${env:REMOTE_IP4} ${env:GW4} ${REMOTE_HOST}" | Out-File -NoNewline -FilePath "${PID_FILE}"
 }
 
 function pre_up() {
@@ -166,15 +168,18 @@ function pre_up() {
     route add ${remote_ip4}/32 ${gw4} | Out-Null
     # Start wstunnel
     Start-Job -ScriptBlock {
+        param($remote_ip4, $gw4)
+        $env:REMOTE_IP4 = $remote_ip4
+        $env:GW4 = $gw4
         Start-Process -WindowStyle Hidden -FilePath "powershell.exe" -ArgumentList @("-File", $input, "launch_wstunnel")
-    } -InputObject $PSCommandPath
+    } -InputObject $PSCommandPath -ArgumentList $remote_ip4, $gw4
 }
 
 function post_up() {
     $interface = (Get-NetAdapter -Name "${WG}*").ifIndex
     try {
         $ipv4 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv4).IPAddress
-        route add 0.0.0.0/0 ${ipv4} METRIC 1 IF ${interface} 2>&1 | Out-Null
+        route add 0.0.0.0/0 ${ipv4} METRIC 0 IF ${interface} 2>&1 | Out-Null
         Write-Output "[#] add IPv4 default route via wireguard gateway ${ipv4} via interface index ${interface}"
     }
     catch {
@@ -182,7 +187,7 @@ function post_up() {
     }
     try {
         $ipv6 = (Get-NetIPAddress -InterfaceIndex $interface -AddressFamily IPv6).IPAddress
-        route add ::0/0 ${ipv6} METRIC 1 IF ${interface} 2>&1 | Out-Null
+        route add ::0/0 ${ipv6} METRIC 0 IF ${interface} 2>&1 | Out-Null
         Write-Output "[#] add IPv6 default route via wireguard gateway ${ipv6} via interface index ${interface}"
     }
     catch {
